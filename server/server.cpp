@@ -15,6 +15,10 @@ using namespace std;
 #define PACKET_SIZE 1024
 #define MAX_CLIENT 16
 
+#define NAME_LEGNTH 24
+#define ROOM_LEGNTH 100
+#define ROOM_PER_CLIENT 8
+
 SOCKET clientSock[MAX_CLIENT];
 SOCKADDR_IN clientAddr[MAX_CLIENT];
 bool client[MAX_CLIENT]={false};
@@ -25,6 +29,37 @@ char buffer[PACKET_SIZE] = {};
 
 
 bool rooms[8];
+
+struct Room{
+    char roomName[ROOM_LEGNTH];
+    //int roomId;
+    bool isEmpty;
+    int clientCount;
+    Room(char RoomName[]){
+        strcpy(roomName,RoomName);
+        clientCount=0;
+        isEmpty=true;
+    }
+};
+
+struct Client{
+    int sockId;
+    bool isConnect;
+    int roomId;
+    char name[NAME_LEGNTH];
+    Client(){}
+    /*Client(int SockId,char Name[]="default name"){
+        sockId=SockId;
+        strcpy(name,Name);
+        isConnect=true;
+        roomId=-1;
+    };*/
+    ~Client(){}
+};
+
+Client clients[MAX_CLIENT];
+
+
 /*
 void proc_recvs(){
 	
@@ -97,23 +132,38 @@ void ReversShell(){
 */
 
 void ClientPacket(int clientIdx){
-    int packetSize=0;
+    int rResult=0;
     int sResult=0;
+    char clntName[NAME_LEGNTH];
+    char tmp[PACKET_SIZE+NAME_LEGNTH+4];
+    rResult=recv(clientSock[clientIdx],clntName,NAME_LEGNTH,0);
+    if(rResult==SOCKET_ERROR || rResult==0){
+            //printf("error %d\n",packetSize);
+    }
+    else{
+        strcpy(clients[clientIdx].name,clntName);
+        clients[clientIdx].isConnect=true;
+        clients[clientIdx].sockId=clientIdx;
+        printf("client %d's name: %s\n\n",clientIdx, clients[clientIdx].name);
+    }
     while(!WSAGetLastError()){
         char buff[PACKET_SIZE]={};
-        packetSize=recv(clientSock[clientIdx],buff,PACKET_SIZE,0);
-        if(packetSize==SOCKET_ERROR || packetSize==0){
+        rResult=recv(clientSock[clientIdx],buff,PACKET_SIZE,0);
+        if(rResult==SOCKET_ERROR || rResult==0){
             //printf("error %d\n",packetSize);
             break;
         }
         if(!strcmp(buff,"/q")) break;
-        printf("%d client packet: %s\n", clientIdx, buff);
+        strcpy(tmp,clients[clientIdx].name);
+        strcat(tmp,": ");
+        strcat(tmp,buff);
+        printf("%s\n",tmp);
         
         for(int i=0;i<MAX_CLIENT;i++){
            
             if(client[i]) {
                 
-                sResult= send(clientSock[i], buff, strlen(buff),0);
+                sResult= send(clientSock[i], tmp, strlen(tmp),0);
                 if(sResult== SOCKET_ERROR) printf("%d clnt send error %d\n",i, WSAGetLastError());
             }
         }
@@ -146,16 +196,21 @@ int main() {
     //서버addr 서버를 구현하면 서버 ip, INADDR_ANY: 현재 컴퓨터 ip (서버없이 구현중)
 
     bind(hListen , (SOCKADDR*)&tListenAddr, sizeof(tListenAddr));
-
+    listen(hListen, SOMAXCONN); //SOMAXCONN 요청 가능한 최대 접속 승인수
+    SOCKET sock;
+    SOCKADDR_IN sockAddr;
+    int iClntSize=sizeof(sockAddr);
     while(1){
-        listen(hListen, SOMAXCONN); //SOMAXCONN 요청 가능한 최대 접속 승인수
+        sock=accept(hListen, (SOCKADDR*)&sockAddr, &iClntSize);
         
         for(int i=0;i<MAX_CLIENT;i++){
             if(client[i]==false){
+                clientSock[i]=sock;
+                clientAddr[i]=sockAddr;
                 
-                int iClntSize=sizeof(clientAddr[i]);
-                clientSock[i]=accept(hListen, (SOCKADDR*)&clientAddr[i], &iClntSize);
-                cout << "client connected to server(IP >> " << inet_ntoa(clientAddr[i].sin_addr) << ")\n" << endl;
+
+                //clientSock[i]=accept(hListen, (SOCKADDR*)&clientAddr[i], &iClntSize);
+                printf("client %d connected to server(IP >> %s)\n",i,inet_ntoa(clientAddr[i].sin_addr));
                 client[i]=true;
                 thread client(ClientPacket,i);
                 client.detach();
@@ -180,16 +235,6 @@ int main() {
         }
     }
     */
-
-    
-
-    
-    /*
-    
-    */
-
-    //closesocket(hClient);
-    //ClientConnect.join();
     closesocket(hListen);
 
     WSACleanup();

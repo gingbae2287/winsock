@@ -14,9 +14,12 @@ using namespace std;
 #define PACKET_SIZE 1024
 #define SERVER_IP "192.168.0.27"
 
+#define NAME_LEGNTH 24
+
 SOCKET hSocket;
 SOCKADDR_IN tAddr={};
 char cBuffer[PACKET_SIZE] = {};
+char name[NAME_LEGNTH];
 
 
 
@@ -34,7 +37,7 @@ void proc_recv(){
         //if(!strcmp(cBuffer,"/q")) break;
 		//cmd=buffer; //buffer의값이 cmd에 들어갑니다
 		//if(cmd=="hi") break; //cmd의값이 "exit"일경우 데이터받아오기'만' 종료
-		printf("recv: %s\n", cBuffer);
+		printf("%s\n", cBuffer);
 	}
 }
 void Chat(){
@@ -113,6 +116,10 @@ int main() {
     tAddr.sin_addr.s_addr=inet_addr(SERVER_IP);
     while(1) if(!connect(hSocket,(SOCKADDR*)&tAddr, sizeof(tAddr))) break;
     cout << "success connecting to server(IP >> " << inet_ntoa(tAddr.sin_addr) << ")\n" << endl;
+    cout<<"name: ";
+    cin>>name;
+    send(hSocket, name, strlen(name),0);
+    
     thread chat(proc_recv);
     while(!WSAGetLastError()){
         /*
